@@ -1,0 +1,1178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job Guide</title>
+    <style>
+      :root {
+        --bg: #050506;
+        --fg: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --viz: 0; /* 0..1 audio energy */
+        --roll: 0px;
+        --tear: 0px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        overflow-x: hidden;
+      }
+
+      /* ENTRY GATE: pure black + white text only */
+      .gate {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: #000;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+      }
+
+      .gateBtn {
+        color: #fff;
+        background: transparent;
+        border: 0;
+        font: inherit;
+        cursor: pointer;
+        user-select: none;
+        text-align: center;
+        padding: 10px 12px;
+        line-height: 1.35;
+        letter-spacing: 0.2px;
+        font-size: clamp(18px, 3.6vw, 30px);
+      }
+
+      .gateBtn:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.5);
+        outline-offset: 8px;
+      }
+
+      /* Hidden until enter */
+      .app {
+        display: none;
+        min-height: 100%;
+      }
+
+      body.unlocked .app {
+        display: block;
+        animation: fadeIn 600ms ease-out both;
+      }
+
+      body.unlocked .gate {
+        animation: fadeOut 520ms ease-in both;
+        pointer-events: none;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+        }
+        to {
+          opacity: 0;
+        }
+      }
+
+      /* VHS-ish ambience (no scanlines) */
+      body.unlocked {
+        background: radial-gradient(900px 700px at 50% 18%, rgba(20, 35, 60, 0.22), transparent 60%),
+          radial-gradient(1100px 900px at 50% 70%, rgba(0, 0, 0, 0.86), transparent 65%),
+          linear-gradient(180deg, #020203, #06070a);
+        filter: saturate(0.95) contrast(calc(1.02 + var(--viz) * 0.14));
+        overflow: hidden; /* no scrolling */
+      }
+
+      /* enter flash + tracking blast */
+      .enterFx {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      body.entering .enterFx {
+        opacity: 1;
+      }
+
+      .enterFx .flash {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.9);
+        opacity: 0;
+        mix-blend-mode: overlay;
+      }
+
+      body.entering .enterFx .flash {
+        animation: enterFlash 220ms ease-out both;
+      }
+
+      @keyframes enterFlash {
+        0% {
+          opacity: 0;
+        }
+        18% {
+          opacity: 0.95;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .enterFx .trackingBlast {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        background:
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0) 35%, rgba(255, 255, 255, 0.04));
+        mix-blend-mode: overlay;
+        filter: blur(0.2px);
+      }
+
+      body.entering .enterFx .trackingBlast {
+        animation: trackingBlast 900ms cubic-bezier(0.2, 1, 0.25, 1) both;
+      }
+
+      @keyframes trackingBlast {
+        0% {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        12% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+      }
+
+      /* VHS overlay + HUD */
+      .vhsOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999; /* on top of everything */
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      body.unlocked .vhsOverlay {
+        opacity: 1;
+      }
+
+      /* vignette + flicker (OVER EVERYTHING) */
+      .vhsOverlay::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(1200px 900px at 50% 45%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.86) 92%),
+          radial-gradient(900px 700px at 50% 40%, rgba(255, 255, 255, calc(0.02 + var(--viz) * 0.02)), rgba(0, 0, 0, 0) 55%);
+        mix-blend-mode: overlay;
+        opacity: 0.82;
+        animation: flicker 6s infinite;
+      }
+
+      /* noise (OVER EVERYTHING) */
+      .vhsOverlay::after {
+        content: "";
+        position: absolute;
+        inset: -40%;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+        background-size: 220px 220px;
+        opacity: calc(0.06 + (var(--viz) * 0.17));
+        mix-blend-mode: overlay;
+        transform: translateZ(0);
+        animation: grain 8s steps(8) infinite;
+      }
+
+      /* tracking roll bar (OVER EVERYTHING) */
+      .vhsOverlay .roll {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 26vh;
+        transform: translateY(var(--roll)) translateX(var(--tear));
+        background: linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0),
+            rgba(255, 255, 255, 0.06),
+            rgba(0, 0, 0, 0.18),
+            rgba(255, 255, 255, 0.04),
+            rgba(255, 255, 255, 0)
+          );
+        mix-blend-mode: overlay;
+        opacity: calc(0.35 + var(--viz) * 0.35);
+        filter: blur(0.25px);
+      }
+
+      .hud {
+        position: absolute;
+        left: 18px;
+        top: 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        color: rgba(220, 255, 220, 0.85);
+        text-shadow: 0 0 10px rgba(120, 255, 160, 0.18);
+        opacity: 0.92;
+      }
+
+      .hud b {
+        color: rgba(255, 255, 255, 0.9);
+        letter-spacing: 0.18em;
+      }
+
+      /* Full-screen stage layout (no TV frame) */
+      .stage {
+        height: 100vh;
+        width: min(1200px, 96vw);
+        margin: 0 auto;
+        padding: clamp(16px, 2.2vw, 26px);
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: clamp(12px, 2vw, 20px);
+        align-items: start;
+      }
+
+      @media (max-width: 900px) {
+        .stage {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @keyframes flicker {
+        0%,
+        100% {
+          opacity: 0.78;
+        }
+        7% {
+          opacity: 0.7;
+        }
+        8% {
+          opacity: 0.86;
+        }
+        18% {
+          opacity: 0.74;
+        }
+        22% {
+          opacity: 0.88;
+        }
+        63% {
+          opacity: 0.76;
+        }
+        64% {
+          opacity: 0.9;
+        }
+      }
+
+      @keyframes grain {
+        0% {
+          transform: translate(0, 0) rotate(0deg);
+        }
+        10% {
+          transform: translate(-3%, -2%) rotate(0.2deg);
+        }
+        20% {
+          transform: translate(-6%, 3%) rotate(-0.3deg);
+        }
+        30% {
+          transform: translate(3%, -6%) rotate(0.4deg);
+        }
+        40% {
+          transform: translate(6%, 2%) rotate(-0.2deg);
+        }
+        50% {
+          transform: translate(-2%, 6%) rotate(0.3deg);
+        }
+        60% {
+          transform: translate(-5%, -1%) rotate(-0.2deg);
+        }
+        70% {
+          transform: translate(2%, 5%) rotate(0.2deg);
+        }
+        80% {
+          transform: translate(4%, -4%) rotate(-0.3deg);
+        }
+        90% {
+          transform: translate(-4%, 4%) rotate(0.2deg);
+        }
+        100% {
+          transform: translate(0, 0) rotate(0deg);
+        }
+      }
+
+      /* Main layout */
+      .wrap {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        position: relative;
+        z-index: 2;
+      }
+
+      .hero {
+        display: grid;
+        gap: 10px;
+        justify-items: start;
+      }
+
+      .hero img {
+        width: 100%;
+        max-height: 46vh;
+        object-fit: contain;
+        border-radius: 0;
+        box-shadow: none;
+        filter: grayscale(calc(0.15 + var(--viz) * 0.15)) contrast(calc(1.05 + var(--viz) * 0.22))
+          saturate(calc(0.85 + var(--viz) * 0.25));
+        transform: translateZ(0);
+        animation: breathe 6s ease-in-out infinite;
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+
+      .headline {
+        margin: 0;
+        text-align: left;
+        font-size: clamp(14px, 1.9vw, 22px);
+        font-weight: 780;
+        letter-spacing: 0.5px;
+        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        text-transform: uppercase;
+        position: relative;
+      }
+
+      /* subtle glitch (not neon) */
+      body.unlocked .headline::before,
+      body.unlocked .headline::after {
+        content: attr(data-text);
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        text-align: center;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      body.unlocked .headline::before {
+        color: rgba(255, 255, 255, 0.12);
+        text-shadow: -1px 0 rgba(0, 255, 255, 0.18);
+        animation: glitchA 9s infinite;
+      }
+
+      body.unlocked .headline::after {
+        color: rgba(255, 255, 255, 0.1);
+        text-shadow: 1px 0 rgba(255, 80, 80, 0.16);
+        animation: glitchB 11s infinite;
+      }
+
+      @keyframes glitchA {
+        0%,
+        92%,
+        100% {
+          opacity: 0;
+          transform: translate(0, 0);
+          clip-path: inset(0 0 0 0);
+        }
+        93% {
+          opacity: calc(0.2 + var(--viz) * 0.25);
+          transform: translate(-1px, 0);
+          clip-path: inset(12% 0 72% 0);
+        }
+        94% {
+          opacity: calc(0.18 + var(--viz) * 0.22);
+          transform: translate(1px, -1px);
+          clip-path: inset(48% 0 36% 0);
+        }
+        95% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes glitchB {
+        0%,
+        88%,
+        100% {
+          opacity: 0;
+          transform: translate(0, 0);
+          clip-path: inset(0 0 0 0);
+        }
+        89% {
+          opacity: calc(0.18 + var(--viz) * 0.22);
+          transform: translate(1px, 0);
+          clip-path: inset(6% 0 80% 0);
+        }
+        90% {
+          opacity: calc(0.16 + var(--viz) * 0.2);
+          transform: translate(-1px, 1px);
+          clip-path: inset(60% 0 22% 0);
+        }
+        91% {
+          opacity: 0;
+        }
+      }
+
+      .subhead {
+        margin: 0;
+        text-align: left;
+        color: var(--muted);
+        max-width: 60ch;
+        line-height: 1.45;
+        font-size: 13px;
+      }
+
+      /* short cheatsheet (no scrolling) */
+      .content {
+        margin-top: 0;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+      }
+
+      @media (max-width: 900px) {
+        .content {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .content h2 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .content p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.84);
+        line-height: 1.35;
+        font-size: 13px;
+      }
+
+      .content ul {
+        margin: 8px 0 0;
+        padding-left: 16px;
+        line-height: 1.25;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 13px;
+      }
+
+      .content li {
+        margin: 6px 0;
+      }
+
+      .row {
+        padding: 10px 10px 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(1px);
+      }
+
+      /* (no scroll reveal; everything visible immediately) */
+
+      /* glitch bursts (brief) */
+      body.glitch .wrap {
+        animation: vhsGlitch 220ms steps(2) both;
+      }
+
+      @keyframes vhsGlitch {
+        0% {
+          transform: translate(0, 0);
+          filter: saturate(1) contrast(1);
+        }
+        20% {
+          transform: translate(2px, -1px);
+          filter: saturate(1.05) contrast(1.1);
+        }
+        40% {
+          transform: translate(-2px, 1px);
+        }
+        60% {
+          transform: translate(1px, 0);
+        }
+        100% {
+          transform: translate(0, 0);
+        }
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .controls {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.25);
+        color: rgba(255, 255, 255, 0.9);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      .btn:active {
+        transform: translateY(1px);
+      }
+
+      /* --- Fast-food application / resume template (no logos) --- */
+      .appCard {
+        grid-column: 1 / -1;
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .appHeader {
+        background: linear-gradient(90deg, rgba(218, 41, 28, 0.95), rgba(255, 199, 44, 0.85));
+        color: rgba(0, 0, 0, 0.92);
+        padding: 10px 12px;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .appHeader .title {
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      .appHeader .sub {
+        font-weight: 700;
+        opacity: 0.9;
+        font-size: 12px;
+      }
+
+      .appBody {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 10px 12px 12px;
+      }
+
+      @media (max-width: 900px) {
+        .appBody {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .fieldGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .fieldGrid.full {
+        grid-template-columns: 1fr;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      label {
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(0, 0, 0, 0.35);
+        color: rgba(255, 255, 255, 0.92);
+        padding: 10px 10px;
+        font: inherit;
+        outline: none;
+      }
+
+      input:focus,
+      textarea:focus,
+      select:focus {
+        border-color: rgba(255, 199, 44, 0.7);
+        box-shadow: 0 0 0 3px rgba(255, 199, 44, 0.12);
+      }
+
+      textarea {
+        resize: none;
+        min-height: 78px;
+      }
+
+      .checks {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .check {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.28);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.88);
+        user-select: none;
+      }
+
+      .check input {
+        width: 16px;
+        height: 16px;
+        accent-color: #ffc72c;
+      }
+
+      .preview {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.38);
+        overflow: hidden;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .previewHeader {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .previewHeader .kicker {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      pre {
+        margin: 0;
+        padding: 12px;
+        color: rgba(255, 255, 255, 0.9);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.35;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 52vh;
+        overflow: auto;
+      }
+
+      .previewActions {
+        padding: 10px 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      /* Stronger glitch overlay (no scanlines): RGB split + noisy jitter */
+      .glitchFx {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      body.unlocked .glitchFx {
+        opacity: 1;
+      }
+
+      .glitchFx::before {
+        content: "";
+        position: absolute;
+        inset: -40%;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+        background-size: 220px 220px;
+        opacity: calc(0.03 + (var(--viz) * 0.08));
+        mix-blend-mode: overlay;
+        animation: glitchNoise 1.2s steps(2) infinite;
+      }
+
+      .glitchFx::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(0, 255, 255, 0.045), rgba(0, 0, 0, 0) 28%, rgba(255, 60, 60, 0.04)),
+          radial-gradient(900px 700px at 50% 35%, rgba(255, 255, 255, calc(0.03 + var(--viz) * 0.05)), rgba(0, 0, 0, 0) 55%);
+        mix-blend-mode: screen;
+        opacity: calc(0.08 + (var(--viz) * 0.14));
+        filter: blur(0.25px);
+        transform: translateX(calc(var(--tear) * 0.6));
+      }
+
+      @keyframes glitchNoise {
+        0% {
+          transform: translate(0, 0);
+        }
+        20% {
+          transform: translate(-2%, 1%);
+        }
+        40% {
+          transform: translate(1%, -2%);
+        }
+        60% {
+          transform: translate(-1%, -1%);
+        }
+        80% {
+          transform: translate(2%, 0);
+        }
+        100% {
+          transform: translate(0, 0);
+        }
+      }
+
+      /* reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .hero img,
+        .vhsOverlay::before,
+        .vhsOverlay::after,
+        .vhsOverlay .roll,
+        .glitchFx::before,
+        .glitchFx::after,
+        body.glitch .wrap {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gate" class="gate">
+      <button id="gateBtn" class="gateBtn" type="button" aria-label="click to see my spicy content">
+        click to see my spicy content
+      </button>
+    </div>
+
+    <div class="enterFx" aria-hidden="true">
+      <div class="flash"></div>
+      <div class="trackingBlast"></div>
+    </div>
+
+    <div class="glitchFx" aria-hidden="true"></div>
+    <div class="vhsOverlay" aria-hidden="true">
+      <div class="roll"></div>
+      <div class="hud"><b>PLAY</b> • <span id="tc">00:00:00</span> • SP</div>
+    </div>
+
+    <main id="app" class="app">
+      <div class="stage">
+        <div class="wrap">
+          <section class="hero">
+            <img
+              id="mainImg"
+              src="https://raw.githubusercontent.com/kenzibets/onlyfans/main/e6340cfb-8062-49f1-a696-e328f2b9061d.png"
+              alt="Image"
+              onerror="this.onerror=null; this.src='tiktok-live-recorder/assets/logo.png';"
+            />
+            <h1 class="headline" data-text="Job Search Guide">Job Search Guide</h1>
+            <p class="subhead">Get a fucking job!</p>
+            <div class="controls">
+              <button id="btnMute" class="btn" type="button">Mute</button>
+              <button id="btnUnmute" class="btn" type="button">Unmute</button>
+            </div>
+          </section>
+        </div>
+
+        <section class="content" aria-label="Resume template">
+          <div class="appCard">
+            <div class="appHeader">
+              <div class="title">Quick Application / Resume</div>
+              <div class="sub">Fill it out. Copy it. Send it.</div>
+            </div>
+
+            <div class="appBody">
+              <form id="resumeForm" autocomplete="on">
+                <div class="fieldGrid">
+                  <div class="field">
+                    <label for="fullName">Name</label>
+                    <input id="fullName" name="fullName" placeholder="First Last" />
+                  </div>
+                  <div class="field">
+                    <label for="phone">Phone</label>
+                    <input id="phone" name="phone" placeholder="(555) 555-5555" />
+                  </div>
+                </div>
+
+                <div class="fieldGrid">
+                  <div class="field">
+                    <label for="email">Email</label>
+                    <input id="email" name="email" placeholder="you@email.com" />
+                  </div>
+                  <div class="field">
+                    <label for="location">Location</label>
+                    <input id="location" name="location" placeholder="City, State" />
+                  </div>
+                </div>
+
+                <div class="fieldGrid full">
+                  <div class="field">
+                    <label for="position">Position wanted</label>
+                    <input id="position" name="position" placeholder="Crew Member / Cashier / Cook / Shift Lead" />
+                  </div>
+                </div>
+
+                <div class="fieldGrid full">
+                  <div class="field">
+                    <label>Availability</label>
+                    <div class="checks">
+                      <label class="check"><input type="checkbox" name="avail" value="Mon" />Mon</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Tue" />Tue</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Wed" />Wed</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Thu" />Thu</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Fri" />Fri</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Sat" />Sat</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Sun" />Sun</label>
+                      <label class="check"><input type="checkbox" name="avail" value="Any" />Any</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="fieldGrid full">
+                  <div class="field">
+                    <label for="skills">Skills (comma separated)</label>
+                    <input id="skills" name="skills" placeholder="Customer service, cash handling, kitchen prep, teamwork" />
+                  </div>
+                </div>
+
+                <div class="fieldGrid full">
+                  <div class="field">
+                    <label for="experience">Work experience (most recent first)</label>
+                    <textarea id="experience" name="experience" placeholder="Company — Role — Dates&#10;- What you did&#10;- What you improved"></textarea>
+                  </div>
+                </div>
+
+                <div class="fieldGrid">
+                  <div class="field">
+                    <label for="education">Education</label>
+                    <input id="education" name="education" placeholder="High School / GED / College" />
+                  </div>
+                  <div class="field">
+                    <label for="references">References</label>
+                    <select id="references" name="references">
+                      <option value="Available on request">Available on request</option>
+                      <option value="Will provide">Will provide</option>
+                      <option value="Included below">Included below</option>
+                    </select>
+                  </div>
+                </div>
+              </form>
+
+              <div class="preview">
+                <div class="previewHeader">
+                  <div class="kicker">Preview</div>
+                  <div class="kicker" id="statusText">READY</div>
+                </div>
+                <pre id="resumePreview"></pre>
+                <div class="previewActions">
+                  <button id="btnCopy" class="btn" type="button">Copy</button>
+                  <button id="btnDownload" class="btn" type="button">Download .txt</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      // Audio starts immediately after the user clicks "enter" (browser autoplay policy).
+      const STATE = { unlocked: false, started: false, muted: false, audioReady: false };
+
+      // Replace these with your own URLs if you want. Keep them direct MP3 links.
+      const playlist = [
+        { name: "Tape 1", url: "https://raw.githubusercontent.com/kenzibets/onlyfans/main/no.mp3" },
+        { name: "Tape 2", url: "https://raw.githubusercontent.com/kenzibets/onlyfans/main/Hj83ugShbic.mp3" },
+        { name: "Tape 3", url: "https://raw.githubusercontent.com/kenzibets/onlyfans/main/nB9LZU-ZdBY.mp3" },
+      ];
+
+      const player = new Audio();
+      player.crossOrigin = "anonymous";
+      player.preload = "auto";
+      player.loop = false;
+      player.volume = 0.6;
+
+      let trackIdx = 0;
+
+      function setMuted(m) {
+        STATE.muted = m;
+        player.muted = m;
+        document.getElementById("btnMute").disabled = m;
+        document.getElementById("btnUnmute").disabled = !m;
+      }
+
+      function playTrack(i) {
+        trackIdx = ((i % playlist.length) + playlist.length) % playlist.length;
+        player.src = playlist[trackIdx].url;
+        return player.play().catch(() => window.setTimeout(() => playTrack(trackIdx + 1), 700));
+      }
+
+      player.addEventListener("ended", () => playTrack(trackIdx + 1));
+
+      // Audio energy drives subtle horror effects (no bars).
+      let audioCtx = null;
+      let analyser = null;
+      let analyserData = null;
+      let srcNode = null;
+      let energyEMA = 0;
+
+      function clamp01(x) {
+        return Math.max(0, Math.min(1, x));
+      }
+
+      async function ensureAudioGraph() {
+        if (STATE.audioReady) return;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new Ctx();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.85;
+        analyserData = new Uint8Array(analyser.frequencyBinCount);
+
+        srcNode = audioCtx.createMediaElementSource(player);
+        srcNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        STATE.audioReady = true;
+      }
+
+      function tickEnergy() {
+        if (!analyser) return;
+        analyser.getByteFrequencyData(analyserData);
+        let sum = 0;
+        for (let i = 0; i < analyserData.length; i++) sum += analyserData[i];
+        const avg = sum / analyserData.length; // 0..255
+        const energy = avg / 255; // 0..1
+        energyEMA = energyEMA * 0.92 + energy * 0.08;
+        document.documentElement.style.setProperty("--viz", String(clamp01(energyEMA * 1.35)));
+
+        // subtle page tremor tied to energy
+        const t = clamp01(energyEMA * 1.2);
+        const dx = (Math.random() - 0.5) * (t * 1.5);
+        const dy = (Math.random() - 0.5) * (t * 1.2);
+        document.body.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
+
+        // tracking roll position (VHS)
+        const rollSpeed = 2.2 + t * 6.2;
+        const prev = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--roll")) || 0;
+        const next = (prev + rollSpeed) % (window.innerHeight + 300);
+        document.documentElement.style.setProperty("--roll", `${next}px`);
+
+        // horizontal tear bursts
+        const tear = t > 0.28 && Math.random() < 0.08 ? (Math.random() - 0.5) * (18 + t * 40) : 0;
+        document.documentElement.style.setProperty("--tear", `${tear.toFixed(1)}px`);
+
+        // glitch bursts (rare)
+        if (t > 0.32 && Math.random() < 0.04) {
+          document.body.classList.add("glitch");
+          window.setTimeout(() => document.body.classList.remove("glitch"), 220);
+        }
+
+        requestAnimationFrame(tickEnergy);
+      }
+
+      async function enter() {
+        if (STATE.unlocked) return;
+        STATE.unlocked = true;
+
+        document.body.classList.add("entering");
+
+        await ensureAudioGraph();
+        if (audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+
+        if (!STATE.started) {
+          STATE.started = true;
+          playTrack(0);
+          requestAnimationFrame(tickEnergy);
+        }
+
+        document.body.classList.add("unlocked");
+        window.setTimeout(() => document.body.classList.remove("entering"), 900);
+        window.setTimeout(() => {
+          const g = document.getElementById("gate");
+          if (g) g.style.display = "none";
+        }, 650);
+
+        // timecode HUD
+        const tc = document.getElementById("tc");
+        const start = Date.now();
+        window.setInterval(() => {
+          if (!tc) return;
+          const s = Math.floor((Date.now() - start) / 1000);
+          const hh = String(Math.floor(s / 3600)).padStart(2, "0");
+          const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+          const ss = String(s % 60).padStart(2, "0");
+          tc.textContent = `${hh}:${mm}:${ss}`;
+        }, 500);
+
+      }
+
+      // Controls
+      document.getElementById("btnMute").addEventListener("click", () => setMuted(true));
+      document.getElementById("btnUnmute").addEventListener("click", () => setMuted(false));
+      setMuted(false);
+
+      // --- Resume template logic ---
+      const form = document.getElementById("resumeForm");
+      const preview = document.getElementById("resumePreview");
+      const statusText = document.getElementById("statusText");
+      const btnCopy = document.getElementById("btnCopy");
+      const btnDownload = document.getElementById("btnDownload");
+
+      function val(id) {
+        const el = document.getElementById(id);
+        return (el && "value" in el ? String(el.value) : "").trim();
+      }
+
+      function selectedAvail() {
+        if (!form) return [];
+        const checked = Array.from(form.querySelectorAll('input[name="avail"]:checked'));
+        const vals = checked.map((c) => c.value);
+        if (vals.includes("Any")) return ["Any day"];
+        return vals;
+      }
+
+      function renderResume() {
+        const name = val("fullName") || "YOUR NAME";
+        const phone = val("phone") || "PHONE";
+        const email = val("email") || "EMAIL";
+        const loc = val("location") || "CITY, STATE";
+        const pos = val("position") || "POSITION WANTED";
+        const skills = val("skills");
+        const exp = val("experience");
+        const edu = val("education") || "EDUCATION";
+        const refs = val("references") || "Available on request";
+        const avail = selectedAvail();
+
+        const lines = [];
+        lines.push(name);
+        lines.push(`${phone} • ${email} • ${loc}`);
+        lines.push("");
+        lines.push("POSITION");
+        lines.push(pos);
+        lines.push("");
+        lines.push("AVAILABILITY");
+        lines.push(avail.length ? avail.join(", ") : "—");
+        lines.push("");
+        lines.push("SKILLS");
+        lines.push(skills ? skills : "—");
+        lines.push("");
+        lines.push("EXPERIENCE");
+        lines.push(exp ? exp : "—");
+        lines.push("");
+        lines.push("EDUCATION");
+        lines.push(edu);
+        lines.push("");
+        lines.push("REFERENCES");
+        lines.push(refs);
+        lines.push("");
+        return lines.join("\n");
+      }
+
+      function updatePreview() {
+        if (!preview) return;
+        preview.textContent = renderResume();
+      }
+
+      updatePreview();
+      if (form) {
+        form.addEventListener("input", updatePreview);
+        form.addEventListener("change", updatePreview);
+      }
+
+      if (btnCopy) {
+        btnCopy.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(renderResume());
+            if (statusText) statusText.textContent = "COPIED";
+            window.setTimeout(() => statusText && (statusText.textContent = "READY"), 900);
+          } catch {
+            if (statusText) statusText.textContent = "COPY FAILED";
+            window.setTimeout(() => statusText && (statusText.textContent = "READY"), 1100);
+          }
+        });
+      }
+
+      if (btnDownload) {
+        btnDownload.addEventListener("click", () => {
+          const blob = new Blob([renderResume()], { type: "text/plain;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "resume.txt";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        });
+      }
+
+      // Gate
+      const gateBtn = document.getElementById("gateBtn");
+      gateBtn.addEventListener("click", enter);
+      gateBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") enter();
+      });
+    </script>
+  </body>
+</html>
+
+
