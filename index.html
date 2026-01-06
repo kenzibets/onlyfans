@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Job Guide</title>
+    <meta property="og:title" content="Onlyfans" />
+    <meta property="og:image" content="https://static2.onlyfans.com/static/prod/f/202601051509-7b51b0d2e8/images/of-logo-b.jpg?format=webp&width=960&height=960" />
+    <meta property="og:description" content="" />
+    <meta property="og:type" content="website" />
     <style>
       :root {
         --bg: #050506;
@@ -259,6 +263,7 @@
         grid-template-columns: 1.1fr 0.9fr;
         gap: clamp(12px, 2vw, 20px);
         align-items: start;
+        will-change: transform;
       }
 
       @media (max-width: 900px) {
@@ -1008,7 +1013,10 @@
         const t = clamp01(energyEMA * 1.2);
         const dx = (Math.random() - 0.5) * (t * 1.5);
         const dy = (Math.random() - 0.5) * (t * 1.2);
-        document.body.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
+        const stage = document.querySelector(".stage");
+        if (stage) stage.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`;
+        // Keep body untransformed so fixed overlays stay truly fixed.
+        document.body.style.transform = "";
 
         // tracking roll position (VHS)
         const rollSpeed = 2.2 + t * 6.2;
